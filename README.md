@@ -61,12 +61,9 @@ The compression algorithm is based on **:contentReference[oaicite:0]{index=0}**.
 
 ### Build Tools
 - CMake
-- GCC / Clang
 
 ### Frontend
 - HTML
-- CSS
-- JavaScript
 - Canvas API (tree visualizer)
 
 ### Testing
