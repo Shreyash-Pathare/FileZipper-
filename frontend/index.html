@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FileZipper – Huffman Encoding Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #00ff88;
+      --accent2: #7c3aed;
+      --accent3: #f59e0b;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --danger: #ef4444;
+      --mono: 'Space Mono', monospace;
+      --display: 'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Glow blobs */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px; right: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-blob2 {
+      position: fixed;
+      bottom: -200px; left: -200px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    main { position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 48px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      background: rgba(10,10,15,0.8);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+      50% { box-shadow: 0 0 40px rgba(0,255,136,0.8); }
+    }
+
+    .logo-text {
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 2px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    nav { display: flex; gap: 8px; }
+    nav button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+    nav button:hover, nav button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,255,136,0.05);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 80px 48px 48px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .hero-label {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-family: var(--display);
+      font-size: clamp(48px, 8vw, 96px);
+      font-weight: 800;
+      line-height: 0.9;
+      letter-spacing: -3px;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 .dim { color: var(--muted); }
+    .hero h1 .highlight {
+      -webkit-text-stroke: 2px var(--accent);
+      color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 500px;
+      line-height: 1.8;
+    }
+
+    /* ── Layout ── */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 24px;
+      padding: 0 48px 48px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+    }
+
+    .panel-title {
+      font-family: var(--display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .panel-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Drop Zone ── */
+    .drop-zone {
+      margin: 24px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .drop-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,255,136,0.03), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .drop-zone:hover, .drop-zone.dragging {
+      border-color: var(--accent);
+      background: rgba(0,255,136,0.03);
+    }
+
+    .drop-zone:hover::before, .drop-zone.dragging::before { opacity: 1; }
+
+    .drop-zone.dragging {
+      box-shadow: 0 0 40px rgba(0,255,136,0.15);
+      transform: scale(1.01);
+    }
+
+    .drop-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .drop-title {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .drop-sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .drop-sub span {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ── File info ── */
+    .file-info {
+      margin: 0 24px 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      display: none;
+    }
+
+    .file-info.visible { display: block; }
+
+    .file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .file-name {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .file-size {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0 4px;
+      transition: transform 0.2s;
+    }
+    .remove-btn:hover { transform: scale(1.2); }
+
+    /* ── Action Buttons ── */
+    .actions {
+      padding: 0 24px 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn:active::after { opacity: 0.1; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+    .btn-primary:hover {
+      background: #00e67a;
+      box-shadow: 0 0 30px rgba(0,255,136,0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      box-shadow: 0 0 20px rgba(124,58,237,0.2);
+    }
+
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ── Stats Panel ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      margin: 0;
+    }
+
+    .stat-cell {
+      background: var(--surface);
+      padding: 20px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-value.green { color: var(--accent); }
+    .stat-value.purple { color: var(--accent2); }
+    .stat-value.amber { color: var(--accent3); }
+    .stat-value.dim { color: var(--muted); }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Ratio bar */
+    .ratio-bar-wrap {
+      padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ratio-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .ratio-bar-track {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .ratio-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 3px;
+      width: 0%;
+      transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Frequency table */
+    .freq-table {
+      padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .freq-table-title {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .freq-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .freq-char {
+      width: 28px;
+      height: 28px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+
+    .freq-bar-track {
+      flex: 1;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .freq-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .freq-count {
+      font-size: 11px;
+      color: var(--muted);
+      width: 40px;
+      text-align: right;
+    }
+
+    /* ── Tree Visualizer ── */
+    .tree-panel {
+      grid-column: 1 / -1;
+    }
+
+    #tree-canvas {
+      width: 100%;
+      height: 400px;
+      display: block;
+    }
+
+    .tree-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 400px;
+      color: var(--muted);
+      gap: 12px;
+    }
+
+    .tree-empty-icon { font-size: 48px; opacity: 0.3; }
+    .tree-empty-text { font-size: 13px; letter-spacing: 1px; }
+
+    /* ── Code Table ── */
+    .code-table-wrap {
+      padding: 20px;
+      border-top: 1px solid var(--border);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .code-table-wrap::-webkit-scrollbar { width: 4px; }
+    .code-table-wrap::-webkit-scrollbar-track { background: var(--surface2); }
+    .code-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(42,42,58,0.5);
+    }
+
+    tr:hover td { background: rgba(0,255,136,0.02); }
+
+    .code-char { color: var(--accent); font-weight: 700; }
+    .code-bits { color: var(--accent2); font-family: var(--mono); }
+    .code-len { color: var(--muted); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 32px; right: 32px;
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 14px 20px;
+      font-size: 13px;
+      color: var(--accent);
+      box-shadow: 0 0 30px rgba(0,255,136,0.2);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ── Progress ── */
+    .progress-bar {
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width 0.5s ease;
+      position: absolute;
+      bottom: 0; left: 0;
+    }
+
+    /* Animation */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero { animation: fadeUp 0.6s ease both; }
+    .workspace > * { animation: fadeUp 0.6s ease both; }
+    .workspace > *:nth-child(2) { animation-delay: 0.1s; }
+    .workspace > *:nth-child(3) { animation-delay: 0.2s; }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; padding: 0 20px 40px; }
+      header { padding: 16px 20px; }
+      .hero { padding: 48px 20px 32px; }
+      nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="glow-blob2"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <span class="logo-text">File<span>Zipper</span></span>
+    <span class="badge">v1.0</span>
+  </div>
+  <nav>
+    <button class="active">Compress</button>
+    <button>Decompress</button>
+    <button>About</button>
+  </nav>
+</header>
+
+<main>
+  <div class="hero">
+    <p class="hero-label">// Huffman Encoding Tool</p>
+    <h1>
+      <span class="dim">compress.</span><br>
+      <span class="highlight">visualize.</span><br>
+      <span class="dim">encode.</span>
+    </h1>
+    <p class="hero-desc">
+      Lossless file compression using Huffman encoding. 
+      Drop any file to analyze its character frequencies, 
+      build the optimal prefix-free code tree, and see 
+      real-time compression statistics.
+    </p>
+  </div>
+
+  <div class="workspace">
+
+    <!-- Left: Upload + Actions -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+
+      <div class="panel">
+        <div class="panel-header" style="position:relative;">
+          <span class="panel-title">Input File</span>
+          <div class="panel-dot"></div>
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <div class="drop-zone" id="drop-zone"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)"
+             onclick="document.getElementById('file-input').click()">
+          <span class="drop-icon">⬡</span>
+          <p class="drop-title">Drop file here</p>
+          <p class="drop-sub">
+            Drag & drop any file, or <span>browse</span><br>
+            Supports: .txt .json .csv .cpp .py and more
+          </p>
+          <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="file-info" id="file-info">
+          <div class="file-row">
+            <span class="file-name" id="file-name">—</span>
+            <span class="file-size" id="file-size">0 B</span>
+            <button class="remove-btn" onclick="clearFile()">×</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="compress-btn" onclick="runCompress()" disabled>
+            ▶ Compress
+          </button>
+          <button class="btn btn-secondary" id="clear-btn" onclick="clearAll()" disabled>
+            ✕ Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Frequency Table -->
+      <div class="panel" id="freq-panel" style="display:none;">
+        <div class="panel-header">
+          <span class="panel-title">Frequency Analysis</span>
+          <div class="panel-dot" style="background:var(--accent2)"></div>
+        </div>
+        <div class="freq-table" id="freq-table-body"></div>
+      </div>
+
+    </div>
+
+    <!-- Right: Stats -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Compression Stats</span>
+          <div class="panel-dot" style="background:var(--accent3)"></div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <div class="stat-label">Original Size</div>
+            <div class="stat-value dim" id="stat-original">—</div>
+            <div class="stat-sub">bytes</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Compressed</div>
+            <div class="stat-value green" id="stat-compressed">—</div>
+            <div class="stat-sub">bytes (est.)</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Ratio</div>
+            <div class="stat-value amber" id="stat-ratio">—</div>
+            <div class="stat-sub">space saved</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Unique Chars</div>
+            <div class="stat-value purple" id="stat-unique">—</div>
+            <div class="stat-sub">symbols</div>
+          </div>
+          <div class="stat-cell" style="grid-column:1/-1;">
+            <div class="stat-label">Avg Bits / Character</div>
+            <div class="stat-value green" id="stat-avgbits" style="font-size:22px;">—</div>
+            <div class="stat-sub">vs 8 bits uncompressed</div>
+          </div>
+        </div>
+
+        <div class="ratio-bar-wrap">
+          <div class="ratio-bar-label">
+            <span>Compression Efficiency</span>
+            <span id="bar-pct">0%</span>
+          </div>
+          <div class="ratio-bar-track">
+            <div class="ratio-bar-fill" id="ratio-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Huffman Code Table -->
+      <div class="panel" id="code-table-panel" style="display:none;">
+        <div class="panel-header">
+          <span class="panel-title">Huffman Codes</span>
+          <div class="panel-dot" style="background:var(--accent2)"></div>
+        </div>
+        <div class="code-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Char</th>
+                <th>Code</th>
+                <th>Bits</th>
+                <th>Freq</th>
+              </tr>
+            </thead>
+            <tbody id="code-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Full width: Tree Visualizer -->
+    <div class="panel tree-panel">
+      <div class="panel-header">
+        <span class="panel-title">Huffman Tree Visualizer</span>
+        <div class="panel-dot" style="background:var(--accent)"></div>
+      </div>
+      <div id="tree-container">
+        <div class="tree-empty">
+          <span class="tree-empty-icon">⬡</span>
+          <span class="tree-empty-text">// Upload a file to visualize the Huffman tree</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────
+  let currentFile = null;
+  let freqMap = {};
+  let huffmanCodes = {};
+  let treeRoot = null;
+
+  // ── File Handling ─────────────────────────────────────────────────────────
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.add('dragging');
+  }
+
+  function handleDragLeave(e) {
+    document.getElementById('drop-zone').classList.remove('dragging');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('dragging');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) loadFile(file);
+  }
+
+  let currentFileText = '';   // store raw text for compress download
+
+  function loadFile(file) {
+    currentFile = file;
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-size').textContent = formatBytes(file.size);
+    document.getElementById('file-info').classList.add('visible');
+    document.getElementById('compress-btn').disabled = false;
+    document.getElementById('clear-btn').disabled = false;
+
+    const bar = document.getElementById('progress-bar');
+    bar.style.width = '100%';
+    setTimeout(() => bar.style.width = '0%', 600);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentFileText = e.target.result;
+      buildHuffman(currentFileText);
+    };
+    reader.readAsText(file);
+  }
+
+  function clearFile() {
+    document.getElementById('file-info').classList.remove('visible');
+    document.getElementById('file-name').textContent = '—';
+    document.getElementById('file-size').textContent = '0 B';
+    document.getElementById('file-input').value = '';
+    currentFile = null;
+  }
+
+  function clearAll() {
+    clearFile();
+    document.getElementById('compress-btn').disabled = true;
+    document.getElementById('clear-btn').disabled = true;
+    document.getElementById('freq-panel').style.display = 'none';
+    document.getElementById('code-table-panel').style.display = 'none';
+    document.getElementById('stat-original').textContent = '—';
+    document.getElementById('stat-compressed').textContent = '—';
+    document.getElementById('stat-ratio').textContent = '—';
+    document.getElementById('stat-unique').textContent = '—';
+    document.getElementById('bar-pct').textContent = '0%';
+    document.getElementById('ratio-bar').style.width = '0%';
+    document.getElementById('tree-container').innerHTML = `
+      <div class="tree-empty">
+        <span class="tree-empty-icon">⬡</span>
+        <span class="tree-empty-text">// Upload a file to visualize the Huffman tree</span>
+      </div>`;
+    freqMap = {}; huffmanCodes = {}; treeRoot = null; currentFileText = '';
+  }
+
+  // ── Huffman Algorithm ─────────────────────────────────────────────────────
+  function buildFrequencyMap(text) {
+    const map = {};
+    for (const ch of text) map[ch] = (map[ch] || 0) + 1;
+    return map;
+  }
+
+  class HNode {
+    // FIX: added id field for deterministic tie-breaking (mirrors C++ fix)
+    constructor(ch, freq, id = 0, left = null, right = null) {
+      this.ch = ch; this.freq = freq; this.id = id;
+      this.left = left; this.right = right;
+    }
+    isLeaf() { return !this.left && !this.right; }
+  }
+
+  function buildHuffmanTree(freqMap) {
+    if (Object.keys(freqMap).length === 0) return null;
+
+    // FIX: sort entries by (freq, charCode) before building heap — this
+    // mirrors the C++ fix and makes the tree 100% deterministic so the
+    // visualizer always shows the same canonical tree for a given input.
+    // Old code used Object.entries() directly which has arbitrary order.
+    const sorted = Object.entries(freqMap)
+      .map(([ch, freq]) => ({ ch, freq }))
+      .sort((a, b) => a.freq !== b.freq
+        ? a.freq - b.freq
+        : a.ch.charCodeAt(0) - b.ch.charCodeAt(0));
+
+    let nextId = 0;
+    // Heap: array kept sorted by (freq, id) — lower = higher priority
+    let heap = sorted.map(({ ch, freq }) => new HNode(ch, freq, nextId++));
+
+    // FIX: single unique character — root is the leaf itself (not a broken
+    // internal node with null right child that crashes tree traversal)
+    if (heap.length === 1) return heap[0];
+
+    while (heap.length > 1) {
+      const left  = heap.shift();
+      const right = heap.shift();
+      const parent = new HNode(null, left.freq + right.freq, nextId++, left, right);
+      // Insert maintaining sort by (freq asc, id asc) — deterministic
+      let i = 0;
+      while (i < heap.length &&
+        (heap[i].freq < parent.freq ||
+         (heap[i].freq === parent.freq && heap[i].id < parent.id))) i++;
+      heap.splice(i, 0, parent);
+    }
+    return heap[0];
+  }
+
+  function generateCodes(node, code = '', codes = {}) {
+    if (!node) return codes;
+    if (node.isLeaf()) {
+      codes[node.ch] = code || '0';
+      return codes;
+    }
+    generateCodes(node.left,  code + '0', codes);
+    generateCodes(node.right, code + '1', codes);
+    return codes;
+  }
+
+  // ── Encode: returns Uint8Array of compressed bytes ─────────────────────────
+  function encodeToBytes(text, codes) {
+    // Build full bit string
+    let bits = '';
+    for (const ch of text) bits += codes[ch] || '';
+
+    const padding = (8 - (bits.length % 8)) % 8;
+
+    // Pack bits MSB-first into bytes (matches C++ encoder exactly)
+    const byteCount = Math.ceil(bits.length / 8);
+    const bytes = new Uint8Array(byteCount);
+    for (let i = 0; i < bits.length; i += 8) {
+      let byte = 0;
+      for (let b = 0; b < 8; b++) {
+        byte <<= 1;
+        if (i + b < bits.length && bits[i + b] === '1') byte |= 1;
+      }
+      bytes[i / 8] = byte;
+    }
+    return { bytes, padding };
+  }
+
+  // ── Build .huff binary (matches C++ file format exactly) ──────────────────
+  function buildHuffFile(text, freqMap, codes) {
+    const encoder = new TextEncoder();
+    const entries = Object.entries(freqMap);
+
+    // Header size: 4 (magic) + 8 (origSize) + 4 (uniqueCount) + N*5 (freq table) + 1 (padding)
+    const headerSize = 4 + 8 + 4 + entries.length * 5 + 1;
+    const { bytes: dataBytes, padding } = encodeToBytes(text, codes);
+    const total = headerSize + dataBytes.length;
+
+    const buf = new ArrayBuffer(total);
+    const view = new DataView(buf);
+    let offset = 0;
+
+    // Magic: "HUF"
+    const magic = [72, 85, 70, 1];
+    magic.forEach(b => view.setUint8(offset++, b));
+
+    // Original size (uint64 little-endian — DataView only does 32-bit natively)
+    const origSize = text.length;
+    view.setUint32(offset, origSize & 0xFFFFFFFF, true); offset += 4;
+    view.setUint32(offset, 0, true); offset += 4; // high 32 bits = 0
+
+    // Unique char count (uint32 LE)
+    view.setUint32(offset, entries.length, true); offset += 4;
+
+    // Freq table: char byte + freq uint32 LE
+    for (const [ch, freq] of entries) {
+      view.setUint8(offset++, ch.charCodeAt(0));
+      view.setUint32(offset, freq, true); offset += 4;
+    }
+
+    // Padding byte
+    view.setUint8(offset++, padding);
+
+    // Encoded data
+    dataBytes.forEach(b => view.setUint8(offset++, b));
+
+    return new Uint8Array(buf);
+  }
+
+  function buildHuffman(text) {
+    freqMap = buildFrequencyMap(text);
+    treeRoot = buildHuffmanTree(freqMap);
+    huffmanCodes = generateCodes(treeRoot);
+
+    renderFreqTable(freqMap);
+    renderCodeTable(huffmanCodes, freqMap);
+    renderTree(treeRoot);
+    updateStats(text, huffmanCodes, freqMap);
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  function updateStats(text, codes, freq) {
+    const original = text.length;
+    const unique   = Object.keys(freq).length;
+
+    // Bit stream size
+    let compressedBits = 0;
+    for (const ch of text) compressedBits += codes[ch]?.length || 0;
+    const dataBits = compressedBits;
+
+    // FIX: include header overhead in estimate so it matches the C++ output.
+    // Header = 4 (magic) + 8 (origSize) + 4 (uniqueCount) + unique*5 + 1 (padding)
+    const headerBytes = 4 + 8 + 4 + unique * 5 + 1;
+    const compressedBytes = headerBytes + Math.ceil(compressedBits / 8);
+
+    const ratio = ((1 - compressedBytes / original) * 100).toFixed(1);
+    const avgBits = original > 0 ? (dataBits / original).toFixed(2) : '0';
+
+    document.getElementById('stat-original').textContent = formatBytes(original);
+    document.getElementById('stat-compressed').textContent = formatBytes(compressedBytes);
+    document.getElementById('stat-ratio').textContent = ratio + '%';
+    document.getElementById('stat-unique').textContent = unique;
+
+    // Update avg bits label if element exists
+    const avgEl = document.getElementById('stat-avgbits');
+    if (avgEl) avgEl.textContent = avgBits;
+
+    const pct = Math.max(0, Math.min(100, parseFloat(ratio)));
+    document.getElementById('bar-pct').textContent = pct.toFixed(1) + '%';
+    setTimeout(() => {
+      document.getElementById('ratio-bar').style.width = pct + '%';
+    }, 100);
+  }
+
+  // ── Frequency Table ───────────────────────────────────────────────────────
+  function renderFreqTable(freq) {
+    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    const max = sorted[0]?.[1] || 1;
+
+    document.getElementById('freq-panel').style.display = 'block';
+    document.getElementById('freq-table-body').innerHTML = sorted.map(([ch, count]) => {
+      const pct = (count / max * 100).toFixed(1);
+      const label = ch === ' ' ? 'SPC' : ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : ch;
+      return `
+        <div class="freq-row">
+          <div class="freq-char">${label}</div>
+          <div class="freq-bar-track">
+            <div class="freq-bar-fill" style="width:0%" data-pct="${pct}"></div>
+          </div>
+          <div class="freq-count">${count}</div>
+        </div>`;
+    }).join('');
+
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll('.freq-bar-fill').forEach(el => {
+        el.style.width = el.dataset.pct + '%';
+      });
+    }, 80);
+  }
+
+  // ── Huffman Code Table ────────────────────────────────────────────────────
+  function renderCodeTable(codes, freq) {
+    const sorted = Object.entries(codes).sort((a, b) => a[1].length - b[1].length);
+    document.getElementById('code-table-panel').style.display = 'block';
+    document.getElementById('code-table-body').innerHTML = sorted.map(([ch, code]) => {
+      const label = ch === ' ' ? 'SPACE' : ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : ch;
+      return `<tr>
+        <td class="code-char">${label}</td>
+        <td class="code-bits">${code}</td>
+        <td class="code-len">${code.length}</td>
+        <td class="code-len">${freq[ch]}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Tree Visualizer (Canvas) ──────────────────────────────────────────────
+  function renderTree(root) {
+    if (!root) return;
+
+    const container = document.getElementById('tree-container');
+    container.innerHTML = '<canvas id="tree-canvas"></canvas>';
+    const canvas = document.getElementById('tree-canvas');
+    const dpr = window.devicePixelRatio || 1;
+    const W = container.offsetWidth;
+    const H = 420;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // Compute layout
+    const positions = {};
+    const DEPTH_GAP = 70;
+    const NODE_R = 20;
+
+    function getDepth(node) {
+      if (!node) return 0;
+      return 1 + Math.max(getDepth(node.left), getDepth(node.right));
+    }
+
+    let leafIndex = 0;
+    function countLeaves(node) {
+      if (!node) return 0;
+      if (node.isLeaf()) return 1;
+      return countLeaves(node.left) + countLeaves(node.right);
+    }
+    const totalLeaves = countLeaves(root);
+    const leafSpacing = Math.max(44, Math.min(70, (W - 80) / Math.max(totalLeaves, 1)));
+
+    let leafX = 40;
+    function assignPositions(node, depth) {
+      if (!node) return;
+      if (node.isLeaf()) {
+        node._x = leafX;
+        node._y = depth * DEPTH_GAP + 40;
+        leafX += leafSpacing;
+      } else {
+        assignPositions(node.left, depth + 1);
+        assignPositions(node.right, depth + 1);
+        node._x = ((node.left?._x || 0) + (node.right?._x || 0)) / 2;
+        node._y = depth * DEPTH_GAP + 40;
+      }
+    }
+    assignPositions(root, 0);
+
+    // Draw edges
+    function drawEdges(node) {
+      if (!node) return;
+      if (node.left) {
+        ctx.beginPath();
+        ctx.moveTo(node._x, node._y);
+        ctx.lineTo(node.left._x, node.left._y);
+        ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Label
+        const mx = (node._x + node.left._x) / 2;
+        const my = (node._y + node.left._y) / 2;
+        ctx.fillStyle = 'rgba(124,58,237,0.9)';
+        ctx.font = '10px Space Mono, monospace';
+        ctx.fillText('0', mx - 6, my);
+        drawEdges(node.left);
+      }
+      if (node.right) {
+        ctx.beginPath();
+        ctx.moveTo(node._x, node._y);
+        ctx.lineTo(node.right._x, node.right._y);
+        ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        const mx = (node._x + node.right._x) / 2;
+        const my = (node._y + node.right._y) / 2;
+        ctx.fillStyle = 'rgba(245,158,11,0.9)';
+        ctx.font = '10px Space Mono, monospace';
+        ctx.fillText('1', mx + 2, my);
+        drawEdges(node.right);
+      }
+    }
+
+    // Draw nodes
+    function drawNodes(node) {
+      if (!node) return;
+
+      const x = node._x, y = node._y;
+      const isLeaf = node.isLeaf();
+
+      // Node circle
+      ctx.beginPath();
+      ctx.arc(x, y, NODE_R, 0, Math.PI * 2);
+      if (isLeaf) {
+        ctx.fillStyle = 'rgba(0,255,136,0.15)';
+        ctx.strokeStyle = '#00ff88';
+      } else {
+        ctx.fillStyle = 'rgba(124,58,237,0.15)';
+        ctx.strokeStyle = '#7c3aed';
+      }
+      ctx.lineWidth = 1.5;
+      ctx.fill();
+      ctx.stroke();
+
+      // Glow
+      if (isLeaf) {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00ff88';
+        ctx.beginPath();
+        ctx.arc(x, y, NODE_R, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // Text
+      ctx.fillStyle = isLeaf ? '#00ff88' : '#a78bfa';
+      ctx.font = `bold 11px Space Mono, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (isLeaf) {
+        const label = node.ch === ' ' ? 'SP' : node.ch === '\n' ? '\\n' : node.ch === '\t' ? '\\t' : node.ch;
+        ctx.fillText(label, x, y - 5);
+        ctx.font = '9px Space Mono, monospace';
+        ctx.fillStyle = 'rgba(0,255,136,0.6)';
+        ctx.fillText(node.freq, x, y + 7);
+      } else {
+        ctx.fillText(node.freq, x, y);
+      }
+
+      drawNodes(node.left);
+      drawNodes(node.right);
+    }
+
+    drawEdges(root);
+    drawNodes(root);
+  }
+
+  // ── Compress: build real .huff file and trigger browser download ─────────
+  function runCompress() {
+    if (!currentFile || !currentFileText) return;
+
+    try {
+      const huffBytes = buildHuffFile(currentFileText, freqMap, huffmanCodes);
+      const blob = new Blob([huffBytes], { type: 'application/octet-stream' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = currentFile.name.replace(/\.[^.]+$/, '') + '.huff';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✓ ' + a.download + ' downloaded!');
+    } catch (e) {
+      showToast('✗ Compression failed: ' + e.message);
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Redraw tree on resize
+  window.addEventListener('resize', () => {
+    if (treeRoot) renderTree(treeRoot);
+  });
+
+  // Nav tab switching (visual only)
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
