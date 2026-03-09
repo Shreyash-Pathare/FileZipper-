@@ -156,8 +156,8 @@ Interactive visualization of the generated Huffman tree.
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/FileZipper.git
-cd FileZipper
+git clone https://github.com/Shreyash-Pathare/FileZipper-.git
+cd FileZipper-
 ```
 ### 2. Build Using CMake
 ```bash
